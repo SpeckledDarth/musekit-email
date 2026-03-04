@@ -1,0 +1,75 @@
+You are building the @musekit/email package for the MuseKit SaaS platform.
+
+This is a standalone npm package that provides the complete email system using Resend.
+
+## Tech Stack Rules
+- Next.js 14.2.18 (do NOT use 15+ or 16+ features)
+- React 18.3.1
+- Tailwind CSS v3.4.x (do NOT upgrade to v4)
+- TypeScript strict mode
+
+## What to Build
+
+### Resend Client (src/client.ts)
+- Initialize Resend with RESEND_API_KEY
+- sendEmail(to, subject, html, options?) — send a single email
+- sendBatchEmails(emails[]) — send multiple emails
+
+### Email Templates (src/templates/)
+Build React email templates using @react-email/components:
+- WelcomeEmail — sent after signup
+- VerificationEmail — email verification link
+- PasswordResetEmail — password reset link
+- SubscriptionConfirmEmail — after successful checkout
+- SubscriptionCanceledEmail — after cancellation
+- TeamInvitationEmail — invite to join organization
+- KPIReportEmail — weekly/monthly metrics summary with KPI data
+
+Each template should:
+- Accept dynamic props (userName, actionUrl, etc.)
+- Use consistent branding (app name, colors from BrandSettings)
+- Support both HTML and plain text fallback
+
+### Template Editor (src/editor.tsx)
+- EmailTemplateEditor component — admin UI for editing templates
+- Live preview panel (shows rendered email)
+- Variable insertion ({{userName}}, {{actionUrl}}, etc.)
+- Test email sending (send preview to admin's email)
+
+### Template Variable System (src/variables.ts)
+- replaceVariables(template, variables) — replace {{var}} placeholders
+- getAvailableVariables(templateType) — list variables for a template type
+- validateTemplate(template) — check for missing variables
+
+### Scheduled Reports (src/reports.ts)
+- generateKPIReport(period: 'weekly' | 'monthly') — gather KPI data
+- scheduleReport(config) — configure report schedule
+- sendScheduledReport(reportData) — format and send via Resend
+
+### Dependencies
+- Install: @musekit/shared (from github:SpeckledDarth/musekit-shared)
+- Install: @musekit/database (from github:SpeckledDarth/musekit-database)
+- Install: @musekit/design-system (from github:SpeckledDarth/musekit-design-system)
+- Install: resend, @react-email/components
+
+### Supabase Tables Used
+- email_templates (read/write — custom templates stored by admin)
+- profiles (read — user info for template variables)
+- brand_settings (read — app name, colors for email branding)
+- subscriptions (read — for KPI report data)
+
+### Environment Secrets Needed
+- RESEND_API_KEY (Open Issue #1 — check if this exists under a different name in the monolithic app. If not found, use the key from Resend dashboard.)
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+
+### Reference Code
+Original: github.com/SpeckledDarth/master-saas-muse
+Look in: src/lib/email/, src/lib/resend/, src/emails/, src/components/email/, src/app/api/email/
+
+### Rules
+- Export everything from src/index.ts
+- Create replit.md and MODULE.md
+- Template editor component uses @musekit/design-system components
+- All templates must render correctly in dark AND light email clients
