@@ -25,30 +25,37 @@ export interface BrandSettings {
 }
 
 export async function getBrandSettings(): Promise<BrandSettings> {
+  const defaults: BrandSettings = {
+    appName: 'MuseKit',
+    primaryColor: '#3b6cff',
+    supportEmail: 'support@musekit.app',
+    websiteUrl: 'https://musekit.app',
+  };
+
   try {
     const supabase = getSupabaseClient();
     const { data } = await supabase
-      .from('brand_settings')
-      .select('*')
-      .single();
+      .from('settings')
+      .select('key, value')
+      .in('key', ['app_name', 'primary_color', 'logo_url', 'support_email', 'website_url']);
 
-    if (data) {
+    if (data && data.length > 0) {
+      const settingsMap: Record<string, string> = {};
+      for (const row of data) {
+        settingsMap[row.key] = row.value;
+      }
+
       return {
-        appName: data.app_name || 'MuseKit',
-        primaryColor: data.primary_color || '#3b6cff',
-        logoUrl: data.logo_url,
-        supportEmail: data.support_email || 'support@musekit.app',
-        websiteUrl: data.website_url || 'https://musekit.app',
+        appName: settingsMap['app_name'] || defaults.appName,
+        primaryColor: settingsMap['primary_color'] || defaults.primaryColor,
+        logoUrl: settingsMap['logo_url'] || defaults.logoUrl,
+        supportEmail: settingsMap['support_email'] || defaults.supportEmail,
+        websiteUrl: settingsMap['website_url'] || defaults.websiteUrl,
       };
     }
   } catch {
     // Fall through to defaults
   }
 
-  return {
-    appName: 'MuseKit',
-    primaryColor: '#3b6cff',
-    supportEmail: 'support@musekit.app',
-    websiteUrl: 'https://musekit.app',
-  };
+  return defaults;
 }

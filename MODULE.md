@@ -130,5 +130,5 @@ All templates accept an optional `brand` prop to customize appName, primaryColor
 
 - `email_templates` — Custom admin templates
 - `profiles` — User info for template variables
-- `brand_settings` — App branding (name, colors)
+- `settings` — App settings as key-value pairs (id, key, value)
 - `subscriptions` — Subscription data for KPI reports

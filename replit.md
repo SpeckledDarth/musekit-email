@@ -10,7 +10,7 @@ The `@musekit/email` package provides the complete email system for the MuseKit 
 - **Styling**: Tailwind CSS v3.4.x
 - **Build Tool**: Vite
 - **Email Service**: Resend
-- **Database**: Supabase (for brand settings, profiles, subscriptions)
+- **Database**: Supabase (for settings, profiles, subscriptions)
 
 ## Project Structure
 ```
