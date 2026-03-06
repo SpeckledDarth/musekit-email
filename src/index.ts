@@ -40,3 +40,8 @@ export { EmailTemplateEditor } from './editor';
 
 export { getSupabaseClient, getBrandSettings } from './lib/supabase';
 export type { BrandSettings } from './lib/supabase';
+
+export { TemplateList } from './TemplateList';
+export type { EmailTemplate } from './TemplateList';
+
+export * from './campaigns';

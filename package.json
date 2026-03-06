@@ -19,7 +19,11 @@
     "build": "npm run build:lib && vite build",
     "preview": "vite preview"
   },
-  "keywords": ["musekit", "email", "resend"],
+  "keywords": [
+    "musekit",
+    "email",
+    "resend"
+  ],
   "license": "MIT",
   "peerDependencies": {
     "react": "^18.3.1",
@@ -28,7 +32,8 @@
   "dependencies": {
     "@react-email/components": "^1.0.8",
     "@supabase/supabase-js": "^2.98.0",
-    "resend": "^6.9.3"
+    "resend": "^6.9.3",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

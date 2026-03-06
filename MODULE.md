@@ -15,7 +15,6 @@ npm install @musekit/email
 ```typescript
 import { sendEmail, sendBatchEmails } from '@musekit/email';
 
-// Send a single email
 const result = await sendEmail(
   'user@example.com',
   'Welcome!',
@@ -23,7 +22,6 @@ const result = await sendEmail(
   { from: 'MuseKit <noreply@musekit.app>' }
 );
 
-// Send batch emails
 const batchResult = await sendBatchEmails([
   { to: 'a@example.com', subject: 'Hello A', html: '<p>Hi A</p>' },
   { to: 'b@example.com', subject: 'Hello B', html: '<p>Hi B</p>' },
@@ -56,16 +54,9 @@ await sendEmail('alex@example.com', 'Welcome to MuseKit!', html);
 ```typescript
 import { replaceVariables, getAvailableVariables, validateTemplate } from '@musekit/email';
 
-// Get available variables for a template type
 const vars = getAvailableVariables('welcome');
+const html = replaceVariables('<h1>Hello {{userName}}</h1>', { userName: 'Alex' });
 
-// Replace variables in a template string
-const html = replaceVariables(
-  '<h1>Hello {{userName}}</h1>',
-  { userName: 'Alex' }
-);
-
-// Validate a template
 const result = validateTemplate(template, 'welcome');
 if (!result.valid) {
   console.log('Missing:', result.missingVariables);
@@ -89,6 +80,55 @@ function AdminPage() {
 }
 ```
 
+### Template List Component
+
+```tsx
+import { TemplateList } from '@musekit/email';
+
+function TemplatesPage() {
+  return (
+    <TemplateList
+      templates={templates}
+      onEdit={(template) => navigateToEdit(template)}
+      onDuplicate={(template) => duplicateTemplate(template)}
+      onDelete={(template) => deleteTemplate(template)}
+    />
+  );
+}
+```
+
+### Campaign Management
+
+```tsx
+import { CampaignList, CampaignEditor, CampaignDetail } from '@musekit/email';
+
+// Campaign List
+<CampaignList
+  campaigns={campaigns}
+  onNewCampaign={() => navigate('/campaigns/new')}
+  onSelectCampaign={(c) => navigate(`/campaigns/${c.id}`)}
+  onDeleteCampaigns={(ids) => deleteCampaigns(ids)}
+/>
+
+// Campaign Editor
+<CampaignEditor
+  onSaveDraft={(data) => saveDraft(data)}
+  onSchedule={(data) => scheduleCampaign(data)}
+  onSendNow={(data, count) => sendCampaign(data)}
+  onSendTest={(html, email) => sendTestEmail(html, email)}
+  onCancel={() => navigate('/campaigns')}
+  estimateRecipients={(audience) => getCount(audience)}
+/>
+
+// Campaign Detail
+<CampaignDetail
+  campaign={campaign}
+  onBack={() => navigate('/campaigns')}
+  onDuplicate={(c) => duplicateCampaign(c)}
+  onDelete={(c) => deleteCampaign(c)}
+/>
+```
+
 ### KPI Reports
 
 ```typescript
@@ -100,6 +140,20 @@ await sendScheduledReport(kpiData, {
   recipientName: 'Admin',
   period: 'monthly',
   dashboardUrl: 'https://musekit.app/admin/analytics',
+});
+```
+
+### Audit Logging
+
+```typescript
+import { writeAuditLog } from '@musekit/email';
+
+await writeAuditLog({
+  action: 'campaign.sent',
+  entity_type: 'campaign',
+  entity_id: campaignId,
+  metadata: { name, subject, recipientCount, audience },
+  user_id: currentUserId,
 });
 ```
 
@@ -128,7 +182,9 @@ All templates accept an optional `brand` prop to customize appName, primaryColor
 
 ## Supabase Tables
 
-- `email_templates` — Custom admin templates
+- `email_templates` — Custom admin templates (id, name, subject, body, description, category, created_at, updated_at)
+- `campaigns` — Email campaigns (see src/campaigns/index.ts for full required schema)
+- `audit_logs` — Audit trail (action, entity_type, entity_id, metadata, user_id, created_at)
 - `profiles` — User info for template variables
 - `settings` — App settings as key-value pairs (id, key, value)
 - `subscriptions` — Subscription data for KPI reports
