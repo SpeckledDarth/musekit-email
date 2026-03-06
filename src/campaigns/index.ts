@@ -48,8 +48,10 @@ export type {
   AudienceFilter,
   AudienceType,
   CampaignFormData,
+  CampaignRecipient,
+  RecipientDeliveryStatus,
 } from './types';
-export { STATUS_COLORS, SUBSCRIPTION_TIERS, USER_STATUSES } from './types';
+export { STATUS_COLORS, RECIPIENT_STATUS_COLORS, SUBSCRIPTION_TIERS, USER_STATUSES } from './types';
 
 export {
   formatRelativeTime,

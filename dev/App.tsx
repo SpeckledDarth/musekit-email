@@ -5,7 +5,7 @@ import type { EmailTemplate } from '@/TemplateList';
 import { CampaignList } from '@/campaigns/CampaignList';
 import { CampaignEditor } from '@/campaigns/CampaignEditor';
 import { CampaignDetail } from '@/campaigns/CampaignDetail';
-import type { Campaign, CampaignFormData } from '@/campaigns/types';
+import type { Campaign, CampaignFormData, CampaignRecipient } from '@/campaigns/types';
 import {
   renderWelcomeEmail,
   renderVerificationEmail,
@@ -23,6 +23,17 @@ const SAMPLE_TEMPLATES: Record<string, string> = {
   <a href="{{actionUrl}}" class="btn">Get Started</a>
 </div>`,
 };
+
+const MOCK_RECIPIENTS: CampaignRecipient[] = [
+  { id: 'r1', email: 'alex@example.com', name: 'Alex Turner', status: 'clicked', delivered_at: '2025-03-01T10:05:00Z', opened_at: '2025-03-01T11:20:00Z', clicked_at: '2025-03-01T11:25:00Z' },
+  { id: 'r2', email: 'sarah@example.com', name: 'Sarah Chen', status: 'opened', delivered_at: '2025-03-01T10:05:00Z', opened_at: '2025-03-01T14:30:00Z', clicked_at: null },
+  { id: 'r3', email: 'james@example.com', name: 'James Wilson', status: 'delivered', delivered_at: '2025-03-01T10:06:00Z', opened_at: null, clicked_at: null },
+  { id: 'r4', email: 'emma@example.com', name: 'Emma Davis', status: 'bounced', delivered_at: null, opened_at: null, clicked_at: null },
+  { id: 'r5', email: 'michael@example.com', name: 'Michael Brown', status: 'opened', delivered_at: '2025-03-01T10:05:00Z', opened_at: '2025-03-02T09:10:00Z', clicked_at: null },
+  { id: 'r6', email: 'lisa@example.com', name: 'Lisa Park', status: 'unsubscribed', delivered_at: '2025-03-01T10:05:00Z', opened_at: '2025-03-01T12:00:00Z', clicked_at: null },
+  { id: 'r7', email: 'david@example.com', status: 'pending', delivered_at: null, opened_at: null, clicked_at: null },
+  { id: 'r8', email: 'nina@example.com', name: 'Nina Rodriguez', status: 'clicked', delivered_at: '2025-03-01T10:05:00Z', opened_at: '2025-03-01T15:45:00Z', clicked_at: '2025-03-01T15:50:00Z' },
+];
 
 type View = 'gallery' | 'editor' | 'templates' | 'campaigns' | 'campaign-new' | 'campaign-detail';
 
@@ -239,6 +250,7 @@ export default function App() {
         {view === 'campaign-detail' && selectedCampaign && (
           <CampaignDetail
             campaign={selectedCampaign}
+            recipients={MOCK_RECIPIENTS}
             onBack={() => setView('campaigns')}
             onDuplicate={(c) => console.log('Duplicate:', c.name)}
             onDelete={(c) => { console.log('Delete:', c.name); setView('campaigns'); }}

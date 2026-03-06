@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 
 export interface EmailTemplate {
   id: string;
@@ -27,6 +27,25 @@ const CATEGORIES = [
   'Team',
   'Report',
 ];
+
+function getUrlParam(key: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    return new URLSearchParams(window.location.search).get(key) || fallback;
+  } catch { return fallback; }
+}
+
+function setUrlParams(params: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    for (const [k, v] of Object.entries(params)) {
+      if (v) url.searchParams.set(k, v);
+      else url.searchParams.delete(k);
+    }
+    window.history.replaceState({}, '', url.toString());
+  } catch {}
+}
 
 interface TemplateListProps {
   templates: EmailTemplate[];
@@ -70,13 +89,23 @@ function templatesToCsv(templates: EmailTemplate[]): string {
 }
 
 export function TemplateList({ templates, loading, onEdit, onDuplicate, onDelete }: TemplateListProps) {
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(() => getUrlParam('tq', ''));
+  const [category, setCategory] = useState(() => getUrlParam('cat', 'All'));
+  const [sortField, setSortField] = useState<SortField>(() => getUrlParam('tsort', 'name') as SortField);
+  const [sortDir, setSortDir] = useState<SortDir>(() => getUrlParam('tdir', 'asc') as SortDir);
+  const [page, setPage] = useState(() => parseInt(getUrlParam('tpage', '1'), 10) || 1);
   const [deleteConfirm, setDeleteConfirm] = useState<EmailTemplate | null>(null);
   const pageSize = 25;
+
+  useEffect(() => {
+    setUrlParams({
+      tq: search || '',
+      cat: category !== 'All' ? category : '',
+      tsort: sortField !== 'name' ? sortField : '',
+      tdir: sortDir !== 'asc' ? sortDir : '',
+      tpage: page > 1 ? String(page) : '',
+    });
+  }, [search, category, sortField, sortDir, page]);
 
   const filtered = useMemo(() => {
     let result = [...templates];
@@ -100,7 +129,12 @@ export function TemplateList({ templates, loading, onEdit, onDuplicate, onDelete
   }, [templates, search, category, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+    else if (page < 1) setPage(1);
+  }, [page, totalPages]);
+  const clampedPage = Math.max(1, Math.min(page, totalPages));
+  const paginated = filtered.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
 
   const toggleSort = useCallback((field: SortField) => {
     if (sortField === field) {
@@ -257,7 +291,7 @@ export function TemplateList({ templates, loading, onEdit, onDuplicate, onDelete
           {totalPages > 1 && (
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Page {page} of {totalPages}
+                Page {clampedPage} of {totalPages}
               </p>
               <div className="flex gap-1">
                 <button

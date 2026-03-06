@@ -71,7 +71,8 @@ dev/
    - Audience targeting: all users, by tier, by status, by date range, custom email list
    - Campaign lifecycle: draft, schedule, send now, with confirmation dialogs
    - Performance metrics: sent, delivered, opened, clicked, bounced, unsubscribed
-   - Bulk operations, CSV export, audit logging
+   - Recipient list with per-recipient delivery status (delivered, opened, clicked, bounced, unsubscribed)
+   - Bulk operations, CSV export, audit logging on all mutations
 
 ## Supabase Tables
 - `settings` — Key-value app settings (id, key, value)
@@ -93,8 +94,10 @@ dev/
 - Row counts in list titles
 - Breadcrumbs on detail views
 - Pagination (25 rows/page)
+- URL-persisted filters (search, status, sort, page in query params)
 - Bulk operations with floating action bar
 - CSV export on all list views
+- Audit logging on all campaign mutations (create, update, delete, send, duplicate)
 
 ## Deployment
 - Configured as static site deployment

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Campaign, CampaignStatus } from './types';
 import { STATUS_COLORS } from './types';
 import { formatRelativeTime, formatFullDate, campaignsToCsv, downloadCsv, writeAuditLog } from './utils';
@@ -8,6 +8,25 @@ import { formatRelativeTime, formatFullDate, campaignsToCsv, downloadCsv, writeA
 type SortField = 'name' | 'subject' | 'status' | 'sent_count' | 'open_rate' | 'click_rate' | 'created_at' | 'sent_at';
 type SortDir = 'asc' | 'desc';
 type StatusFilter = 'all' | CampaignStatus;
+
+function getUrlParam(key: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    return new URLSearchParams(window.location.search).get(key) || fallback;
+  } catch { return fallback; }
+}
+
+function setUrlParams(params: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    for (const [k, v] of Object.entries(params)) {
+      if (v) url.searchParams.set(k, v);
+      else url.searchParams.delete(k);
+    }
+    window.history.replaceState({}, '', url.toString());
+  } catch {}
+}
 
 interface CampaignListProps {
   campaigns: Campaign[];
@@ -24,14 +43,24 @@ export function CampaignList({
   onSelectCampaign,
   onDeleteCampaigns,
 }: CampaignListProps) {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [sortField, setSortField] = useState<SortField>('created_at');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState(() => getUrlParam('q', ''));
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => getUrlParam('status', 'all') as StatusFilter);
+  const [sortField, setSortField] = useState<SortField>(() => getUrlParam('sort', 'created_at') as SortField);
+  const [sortDir, setSortDir] = useState<SortDir>(() => getUrlParam('dir', 'desc') as SortDir);
+  const [page, setPage] = useState(() => parseInt(getUrlParam('page', '1'), 10) || 1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const pageSize = 25;
+
+  useEffect(() => {
+    setUrlParams({
+      q: search || '',
+      status: statusFilter !== 'all' ? statusFilter : '',
+      sort: sortField !== 'created_at' ? sortField : '',
+      dir: sortDir !== 'desc' ? sortDir : '',
+      page: page > 1 ? String(page) : '',
+    });
+  }, [search, statusFilter, sortField, sortDir, page]);
 
   const filtered = useMemo(() => {
     let result = [...campaigns];
@@ -64,7 +93,12 @@ export function CampaignList({
   }, [campaigns, search, statusFilter, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+    else if (page < 1) setPage(1);
+  }, [page, totalPages]);
+  const clampedPage = Math.max(1, Math.min(page, totalPages));
+  const paginated = filtered.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
 
   const toggleSort = useCallback((field: SortField) => {
     if (sortField === field) {
@@ -278,7 +312,7 @@ export function CampaignList({
           {totalPages > 1 && (
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Page {page} of {totalPages}
+                Page {clampedPage} of {totalPages}
               </p>
               <div className="flex gap-1">
                 <button

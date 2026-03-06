@@ -42,6 +42,27 @@ export interface CampaignFormData {
   scheduled_at: string | null;
 }
 
+export type RecipientDeliveryStatus = 'pending' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'unsubscribed';
+
+export interface CampaignRecipient {
+  id: string;
+  email: string;
+  name?: string;
+  status: RecipientDeliveryStatus;
+  delivered_at?: string | null;
+  opened_at?: string | null;
+  clicked_at?: string | null;
+}
+
+export const RECIPIENT_STATUS_COLORS: Record<RecipientDeliveryStatus, { bg: string; text: string; darkBg: string; darkText: string }> = {
+  pending: { bg: 'bg-gray-100', text: 'text-gray-600', darkBg: 'dark:bg-gray-700', darkText: 'dark:text-gray-400' },
+  delivered: { bg: 'bg-blue-100', text: 'text-blue-700', darkBg: 'dark:bg-blue-900', darkText: 'dark:text-blue-300' },
+  opened: { bg: 'bg-green-100', text: 'text-green-700', darkBg: 'dark:bg-green-900', darkText: 'dark:text-green-300' },
+  clicked: { bg: 'bg-purple-100', text: 'text-purple-700', darkBg: 'dark:bg-purple-900', darkText: 'dark:text-purple-300' },
+  bounced: { bg: 'bg-red-100', text: 'text-red-700', darkBg: 'dark:bg-red-900', darkText: 'dark:text-red-300' },
+  unsubscribed: { bg: 'bg-yellow-100', text: 'text-yellow-700', darkBg: 'dark:bg-yellow-900', darkText: 'dark:text-yellow-300' },
+};
+
 export const SUBSCRIPTION_TIERS = ['Starter', 'Basic', 'Premium'] as const;
 export const USER_STATUSES = ['Active', 'Trialing', 'Churned'] as const;
 
