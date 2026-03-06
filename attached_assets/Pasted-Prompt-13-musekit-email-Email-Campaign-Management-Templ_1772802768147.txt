@@ -1,0 +1,144 @@
+Prompt 13: musekit-email — Email Campaign Management + Template List Improvements
+Module Repl
+musekit-email (GitHub: SpeckledDarth/musekit-email)
+
+Context
+The email package has solid sending infrastructure (Resend integration, template rendering, variable injection) and a functional template editor. But:
+
+The campaigns table exists in the database with 0 rows and no admin UI
+The template list in the email setup page has no search, sort, or filter
+There's no way to send targeted email campaigns to user segments
+Part A: Email Campaign Management
+Required — create campaign management components:
+CampaignList component (src/campaigns/CampaignList.tsx):
+
+Table of all campaigns from the campaigns table
+Columns: Name, Subject, Status (Draft/Scheduled/Sent/Failed), Recipients, Open Rate, Click Rate, Created, Sent Date
+Column sorting on all columns
+Search by campaign name or subject
+Filter by status (All / Draft / Scheduled / Sent / Failed)
+Clickable rows → open CampaignDetail
+"New Campaign" button → opens CampaignEditor
+CampaignEditor component (src/campaigns/CampaignEditor.tsx):
+
+Form fields: Name, Subject line, From name, Reply-to
+Body editor: Reuse the existing EmailTemplateEditor component or a similar rich HTML editor
+Audience selector:
+All users
+By subscription tier (Starter / Basic / Premium)
+By status (Active / Trialing / Churned)
+By signup date range
+Custom: manual email list (textarea, comma-separated)
+Variable insertion — reuse existing variable system from variables.ts
+Preview — show rendered email in iframe (reuse existing preview logic)
+Send test email — send to a specified address for review
+Actions:
+Save as Draft
+Schedule send (date/time picker)
+Send Now (with confirmation dialog: "Send to X recipients?")
+Persist to campaigns table via API
+CampaignDetail component (src/campaigns/CampaignDetail.tsx):
+
+Shows full campaign info: name, subject, body preview, audience
+Performance metrics: sent count, delivered, opened, clicked, bounced, unsubscribed
+Recipient list with individual delivery status
+Actions: Duplicate campaign, delete (drafts only)
+Timeline: when created, when sent, delivery completion
+Barrel export:
+
+Create src/campaigns/index.ts exporting all campaign components
+Add export * from "./campaigns" to src/index.ts
+Part B: Template List Improvements
+File: src/editor.tsx (or the component that lists email templates in the admin setup)
+
+Current state:
+Lists all email templates by name
+Can edit subject and body
+Can send test emails
+No search or sort
+Required changes:
+Search bar — Filter templates by name or subject
+Column sorting — Sort by name, category, last updated
+Category filter — Filter by template category (Welcome, Verification, Reset Password, Notification, Marketing, etc.)
+Clickable rows — Click to expand/edit (if not already)
+Duplicate template — Button to clone an existing template as a starting point
+Part C: Integration Rules
+All components must use "use client" directive
+All Supabase imports must use relative paths (NOT @/)
+Use next/navigation (NOT next/router) for any routing
+Resend API calls must go through server-side API routes (never expose API key client-side)
+Export everything from barrel src/index.ts
+Database Reference
+The campaigns table (check actual schema — may have more columns):
+
+Column	Type
+id	uuid (PK)
+created_at	timestamptz
+Important: The campaigns table may only have id and created_at columns in the current database. Check the actual schema in Supabase before building. If essential columns are missing, you MUST:
+
+Build the campaign components assuming the full schema below will exist
+Document the required columns clearly in a comment block at the top of the campaigns barrel file (src/campaigns/index.ts)
+Report the missing columns so prompt 08 (musekit-database) can be updated with an ALTER TABLE migration
+Required campaigns columns (build assuming these exist):
+
+Column	Type	Description
+id	uuid (PK)	Auto-generated
+name	text	Campaign name
+subject	text	Email subject line
+body	text	HTML email body
+from_name	text	Sender display name
+reply_to	text	Reply-to email address
+status	text	CHECK ('draft', 'scheduled', 'sending', 'sent', 'failed')
+audience	jsonb	Audience filter criteria
+scheduled_at	timestamptz	Scheduled send time (null = manual send)
+sent_at	timestamptz	Actual send time
+sent_count	integer	Number of emails sent
+open_rate	numeric	Open rate percentage
+click_rate	numeric	Click rate percentage
+bounce_count	integer	Number of bounced emails
+unsubscribe_count	integer	Number of unsubscribes
+created_at	timestamptz	Auto-generated
+updated_at	timestamptz	Auto-generated
+Do NOT alter the database schema directly. Schema changes must be coordinated through the integration Repl and prompt 08 (musekit-database).
+
+The email_templates table (7 rows):
+
+Column	Type
+id	uuid (PK)
+name	text
+subject	text
+body	text
+description	text
+category	text
+created_at	timestamptz
+updated_at	timestamptz
+STANDARD E Cross-Reference
+Apply all UX Standards from Prompt 09 STANDARD E to every component in this module:
+
+Toast notifications (sonner) on every mutation
+Empty states on every list with zero rows
+Confirmation dialogs on all destructive operations (delete campaign, send campaign)
+Dark mode (dark: classes) on all UI
+Loading skeletons on every data-fetching page
+Unsaved changes warning on every form (campaign editor, template editor)
+Form validation with inline error messages
+Relative timestamps with hover tooltips
+Row counts in list page titles
+Breadcrumbs on every detail/drill-down page
+Pagination (25 rows/page, page in URL)
+URL-persisted filters (search, filter, sort in query params)
+Bulk operations (checkbox column, floating action bar)
+CSV export on every list view
+Audit logging on every create/update/delete mutation
+Campaign Send Audit Logging
+Every campaign send must be fully audited. When a campaign is sent:
+
+Write an audit_logs entry with action campaign.sent, including: campaign ID, campaign name, subject, recipient count, audience filter criteria, sender user ID, timestamp
+The CampaignDetail performance metrics should show delivery stats server-side when available from the email provider (sent, delivered, opened, clicked, bounced)
+Campaign analytics are read-only — show them in the CampaignDetail view alongside the recipient list
+After Fix
+Push to GitHub. The integration Repl will:
+
+Create /admin/campaigns route wired to CampaignList
+Wire campaign API routes for CRUD and sending
+Update admin sidebar to include Campaigns link
