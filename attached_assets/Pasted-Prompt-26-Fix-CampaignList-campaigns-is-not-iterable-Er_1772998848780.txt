@@ -1,0 +1,72 @@
+Prompt 26: Fix CampaignList "campaigns is not iterable" Error
+Context
+Production Target
+Next.js 14.2.18 (App Router) + Supabase + Vercel
+This module lives at packages/email/ in the monorepo
+The campaigns page is routed at /admin/campaigns
+Problem
+Navigating to /admin/campaigns crashes with:
+
+TypeError: campaigns is not iterable
+  at CampaignList (../../packages/email/src/campaigns/CampaignList.tsx:58:68)
+The crash occurs at line 66:
+
+let result = [...campaigns];
+The campaigns prop is undefined when the component renders (the page wrapper currently passes no props), and spreading a non-iterable value throws a TypeError.
+
+Impact
+The entire /admin/campaigns page is broken — it shows a "Something went wrong" error screen.
+
+Fix
+File: client/src/email/campaigns/CampaignList.tsx
+Note: File path uses client/src/email/... — this is the path structure in the module Repl where this prompt is executed. In the integration monorepo, this file lives at packages/email/src/campaigns/CampaignList.tsx.
+
+One line to change:
+
+Line 66:
+
+let result = [...campaigns];
+→
+
+let result = [...(campaigns ?? [])];
+That is the only change required. Here is the exhaustive accounting of every occurrence of campaigns in this file, confirming no other changes are needed:
+
+Line	Code	Disposition
+6	import { ... campaignsToCsv ... } from './utils'	Import — no change needed
+32	campaigns: Campaign[]	Type declaration in CampaignListProps — no change needed
+40	campaigns,	Destructured from props — no change needed
+66	let result = [...campaigns];	FIX: [...(campaigns ?? [])]
+93	}, [campaigns, search, statusFilter, sortField, sortDir]);	useMemo dependency array — undefined in dep array is safe, no change needed
+131	const csv = campaignsToCsv(filtered);	Passes filtered (already an array from the useMemo) — no change needed
+132	downloadCsv(csv, 'campaigns.csv');	String literal filename — no change needed
+193	placeholder="Search campaigns..."	UI string — no change needed
+226	No campaigns found	UI string — no change needed
+Total: 9 occurrences of "campaigns" in the file. 1 requires a fix. 8 are safe as-is.
+
+Other files in the package — no changes needed
+utils.ts line 54 has campaignsToCsv(campaigns: Campaign[]) — this function is only called at line 131 with filtered, which is the output of the useMemo (always an array after the fix). No guard needed.
+
+No other files in packages/email/src/campaigns/ reference the campaigns prop variable.
+
+CRITICAL RULES
+ONLY add the ?? [] null guard on line 66 — do NOT change any other line
+Do NOT change how campaigns data is fetched or stored
+Do NOT change component props, types, or exports
+Do NOT add loading states, error boundaries, or UI changes — just prevent the crash
+Do NOT modify any other file in the email package
+Integration Note (for reference only — NOT part of this prompt's scope)
+The page wrapper at apps/web/src/app/admin/campaigns/page.tsx currently renders <CampaignList /> with no props — no campaigns data is fetched or passed. After this fix, the page will load without crashing but will show "No campaigns found" (empty state). A separate integration task in the monorepo Repl will wire up Supabase data fetching and pass the campaigns prop. This prompt only fixes the crash.
+
+Verification
+# Confirm the fix is applied (should show the ?? [] guard):
+grep -n 'campaigns' client/src/email/campaigns/CampaignList.tsx
+# Confirm no other files were modified:
+git diff --name-only
+Checklist:
+
+ Line 66 changed from [...campaigns] to [...(campaigns ?? [])]
+ No other lines in CampaignList.tsx were modified
+ No other files in the email package were modified
+ TypeScript compiles: npx tsc --noEmit
+ App starts without errors
+ /admin/campaigns page loads without crashing (shows empty state or campaign list)

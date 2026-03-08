@@ -63,7 +63,7 @@ export function CampaignList({
   }, [search, statusFilter, sortField, sortDir, page]);
 
   const filtered = useMemo(() => {
-    let result = [...campaigns];
+    let result = [...(campaigns ?? [])];
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(
