@@ -37,7 +37,7 @@ export async function getBrandSettings(): Promise<BrandSettings> {
     const { data } = await supabase
       .from('settings')
       .select('key, value')
-      .in('key', ['app_name', 'primary_color', 'logo_url', 'support_email', 'website_url']);
+      .in('key', ['app_name', 'primary_color', 'logo_url', 'support_email', 'website_url', 'palette.primaryColor']);
 
     if (data && data.length > 0) {
       const settingsMap: Record<string, string> = {};
@@ -47,7 +47,7 @@ export async function getBrandSettings(): Promise<BrandSettings> {
 
       return {
         appName: settingsMap['app_name'] || defaults.appName,
-        primaryColor: settingsMap['primary_color'] || defaults.primaryColor,
+        primaryColor: settingsMap['palette.primaryColor'] || settingsMap['primary_color'] || defaults.primaryColor,
         logoUrl: settingsMap['logo_url'] || defaults.logoUrl,
         supportEmail: settingsMap['support_email'] || defaults.supportEmail,
         websiteUrl: settingsMap['website_url'] || defaults.websiteUrl,

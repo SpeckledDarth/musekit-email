@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getAvailableVariables, replaceVariables, validateTemplate } from './variables';
 import type { TemplateType } from './variables';
 import { emailWrapper } from './templates/shared';
+import { getBrandSettings } from './lib/supabase';
 
 interface EmailTemplateEditorProps {
   initialTemplate?: string;
@@ -28,6 +29,15 @@ export function EmailTemplateEditor({
   const [testEmail, setTestEmail] = useState('');
   const [testSending, setTestSending] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [fetchedBrandColor, setFetchedBrandColor] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!brandSettings?.primaryColor) {
+      getBrandSettings().then(brand => {
+        setFetchedBrandColor(brand.primaryColor);
+      }).catch(() => {});
+    }
+  }, [brandSettings?.primaryColor]);
 
   const variables = useMemo(() => getAvailableVariables(selectedType), [selectedType]);
 
@@ -43,12 +53,12 @@ export function EmailTemplateEditor({
     const replaced = replaceVariables(template, sampleValues);
     const brand = {
       appName: brandSettings?.appName || 'MuseKit',
-      primaryColor: brandSettings?.primaryColor || '#3b6cff',
+      primaryColor: brandSettings?.primaryColor || fetchedBrandColor || '#3b6cff',
       supportEmail: brandSettings?.supportEmail || 'support@musekit.app',
       websiteUrl: brandSettings?.websiteUrl || 'https://musekit.app',
     };
     return emailWrapper(replaced, brand);
-  }, [template, sampleValues, brandSettings]);
+  }, [template, sampleValues, brandSettings, fetchedBrandColor]);
 
   const validation = useMemo(
     () => validateTemplate(template, selectedType, sampleValues),

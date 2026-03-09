@@ -1,0 +1,201 @@
+Prompt 46: musekit-email — Dynamic Brand Colors in Email Templates
+Module Repl
+musekit-email (GitHub: SpeckledDarth/musekit-email)
+
+Context
+The email package renders 7 transactional email templates (Welcome, Verification, Password Reset, Subscription Confirm, Subscription Canceled, Team Invitation, KPI Report). All emails flow through a shared emailWrapper function in shared.ts that provides the HTML layout and styling.
+
+Currently, the primary brand color is hardcoded as #3b6cff in the defaultBrand object in shared.ts. Dark mode colors are hardcoded as #1a1a2e and #16213e. Since CSS variables don't work in email clients, emails must use inline hex values injected at render time.
+
+The good news: a getBrandSettings() function ALREADY EXISTS in src/lib/supabase.ts — and reports.ts already calls it. The issue is that (a) it queries snake_case keys (app_name, primary_color, etc.) that may not match the CSS Dashboard's palette.primaryColor key, and (b) most template callers don't use it.
+
+Reference: See docs/current/css-variable-contract.md for the complete list of available CSS variables. Note: email templates cannot use CSS variables — they must use inline hex values from the same Supabase source.
+
+Current State (verified March 9, 2026)
+shared.ts — defaultBrand Object
+export const defaultBrand = {
+  appName: 'MuseKit',
+  primaryColor: '#3b6cff',
+  supportEmail: 'support@musekit.app',
+  websiteUrl: 'https://musekit.app',
+};
+shared.ts — emailWrapper Function
+The emailWrapper(content, brand) function accepts a brand parameter with a default of defaultBrand. The brand.primaryColor is already used throughout the template:
+
+.email-header { background-color: ${brand.primaryColor}; } (header background)
+.btn { background-color: ${brand.primaryColor}; } (CTA button)
+.kpi-value { color: ${brand.primaryColor}; } (KPI highlight)
+Footer link: style="color: ${brand.primaryColor};" (inline)
+The wrapper already SUPPORTS dynamic primary color — the problem is that most callers pass no brand or pass the default.
+
+shared.ts — Hardcoded Dark Mode Colors
+@media (prefers-color-scheme: dark) {
+  body { background-color: #1a1a2e !important; }
+  .email-container { background-color: #16213e !important; }
+}
+These are not derived from the brand.
+
+src/lib/supabase.ts — getBrandSettings() ALREADY EXISTS
+export interface BrandSettings {
+  appName: string;
+  primaryColor: string;
+  logoUrl?: string;
+  supportEmail?: string;
+  websiteUrl?: string;
+}
+export async function getBrandSettings(): Promise<BrandSettings> {
+  const defaults: BrandSettings = {
+    appName: 'MuseKit',
+    primaryColor: '#3b6cff',
+    supportEmail: 'support@musekit.app',
+    websiteUrl: 'https://musekit.app',
+  };
+  // Queries Supabase for keys: 'app_name', 'primary_color', 'logo_url',
+  // 'support_email', 'website_url'
+  // Falls back to defaults on error
+}
+KEY ISSUE: This function queries primary_color (snake_case), but the CSS Dashboard stores palette.primaryColor (camelCase with prefix). These may be different rows in the settings table. The fix must reconcile this — either:
+
+Update getBrandSettings to ALSO query palette.primaryColor and prefer it over primary_color
+OR ensure the CSS Dashboard writes to primary_color as well
+reports.ts — Already Uses getBrandSettings
+import { getBrandSettings } from './lib/supabase';
+// ...
+const brand = await getBrandSettings();
+This is the only caller that currently uses dynamic brand. Other template callers pass no brand.
+
+editor.tsx — Default Fallback
+primaryColor: brandSettings?.primaryColor || '#3b6cff',
+Email Sending Pipeline
+src/client.ts — sendEmail() and sendBatchEmails() using Resend
+Templates call emailWrapper(content) (no brand passed) or emailWrapper(content, brand) (with brand)
+src/reports.ts — sendScheduledReport() for KPI emails (ALREADY uses getBrandSettings)
+The Fix
+1. Update getBrandSettings() to Read CSS Dashboard Color
+In src/lib/supabase.ts, update the getBrandSettings() function to ALSO query palette.primaryColor and prefer it over the legacy primary_color key:
+
+export async function getBrandSettings(): Promise<BrandSettings> {
+  // ... existing defaults ...
+  try {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase
+      .from('settings')
+      .select('key, value')
+      .in('key', [
+        'app_name', 'primary_color', 'logo_url', 'support_email', 'website_url',
+        'palette.primaryColor',  // ← ADD THIS: CSS Dashboard primary color
+      ]);
+    if (data && data.length > 0) {
+      const settingsMap: Record<string, string> = {};
+      for (const row of data) {
+        settingsMap[row.key] = row.value;
+      }
+      return {
+        appName: settingsMap['app_name'] || defaults.appName,
+        // Prefer palette.primaryColor (CSS Dashboard) over legacy primary_color
+        primaryColor: settingsMap['palette.primaryColor'] || settingsMap['primary_color'] || defaults.primaryColor,
+        logoUrl: settingsMap['logo_url'] || defaults.logoUrl,
+        supportEmail: settingsMap['support_email'] || defaults.supportEmail,
+        websiteUrl: settingsMap['website_url'] || defaults.websiteUrl,
+      };
+    }
+  } catch {
+    // Fall through to defaults
+  }
+  return defaults;
+}
+This ensures emails reflect whatever the admin sets in the CSS Dashboard. The legacy primary_color key still works as a fallback.
+
+2. Update ALL Template Callers to Use getBrandSettings()
+Each template's render function should accept an optional brand parameter and use getBrandSettings() when not provided:
+
+Option A (preferred — minimal API change): Update the email sending pipeline to always fetch brand before rendering:
+
+In src/client.ts (or wherever sendEmail calls template render functions), add brand resolution:
+
+import { getBrandSettings } from './lib/supabase';
+// Before rendering any template:
+const brand = await getBrandSettings();
+const html = renderWelcomeEmail(vars, brand);
+Option B: Make each render function async and self-fetch:
+
+export async function renderWelcomeEmail(vars: WelcomeVars, brand?: BrandSettings) {
+  const resolvedBrand = brand || await getBrandSettings();
+  return emailWrapper(content, resolvedBrand);
+}
+Option A is simpler — fetch once, pass everywhere. The key point is that ALL 7 templates receive the dynamic brand.
+
+3. Ensure ALL 7 Templates Pass Brand to emailWrapper
+Verify each template's render function passes brand to emailWrapper(content, brand):
+
+WelcomeEmail.ts → emailWrapper(content, brand)
+VerificationEmail.ts → emailWrapper(content, brand)
+PasswordResetEmail.ts → emailWrapper(content, brand)
+SubscriptionConfirmEmail.ts → emailWrapper(content, brand)
+SubscriptionCanceledEmail.ts → emailWrapper(content, brand)
+TeamInvitationEmail.ts → emailWrapper(content, brand)
+KPIReportEmail.ts → emailWrapper(content, brand) (already does this via reports.ts)
+4. Update editor.tsx Default
+Replace the hardcoded fallback:
+
+primaryColor: brandSettings?.primaryColor || '#3b6cff',
+The editor receives brandSettings as a prop from the admin setup page. Since the admin setup page reads from Supabase, this should already work IF the admin setup page passes the palette primary color. Verify this is the case — if the prop brandSettings.primaryColor comes from the primary_color settings key, it may still be stale.
+
+The simplest fix: make the editor's useEffect call getBrandSettings() on mount and use that as the default:
+
+import { getBrandSettings } from './lib/supabase';
+// In the component:
+useEffect(() => {
+  getBrandSettings().then(brand => {
+    if (!brandSettings?.primaryColor) {
+      setBrandColor(brand.primaryColor);
+    }
+  });
+}, []);
+5. Dark Mode Colors (Optional Improvement)
+The hardcoded dark mode colors (#1a1a2e, #16213e) are neutral enough to work with any brand. Keeping them as-is is acceptable for Sprint 1.
+
+If time permits, derive dark mode container color from the brand:
+
+Extract hue from brand.primaryColor using a simple hex→HSL conversion
+Set container bg to hsl(hue, 20%, 12%)
+Set body bg to hsl(hue, 20%, 8%)
+This is a nice-to-have — not required for Sprint 1.
+
+What NOT to Do
+Do NOT change the Resend integration or email sending logic
+Do NOT change email variable systems or template variable interfaces
+Do NOT change the HTML structure of the emailWrapper — only update how colors are sourced
+Do NOT use CSS variables in email HTML — they don't work in email clients
+Do NOT change the email queue/job processing logic
+Do NOT remove the defaultBrand object — keep it as a fallback
+Do NOT remove the existing getBrandSettings() function — UPDATE it
+Do NOT change the snake_case key lookups that already work — only ADD the palette.primaryColor query
+Verification Checklist
+Brand Settings
+ getBrandSettings() in src/lib/supabase.ts queries palette.primaryColor from settings table
+ getBrandSettings() prefers palette.primaryColor over legacy primary_color key
+ getBrandSettings() falls back to defaultBrand if Supabase is unavailable
+ Existing reports.ts usage of getBrandSettings() still works
+Template Updates
+ grep -r "#3b6cff" src/ returns results ONLY in defaultBrand defaults (which are fallbacks)
+ All 7 template render functions accept and pass brand to emailWrapper
+ renderWelcomeEmail passes brand to emailWrapper
+ renderVerificationEmail passes brand to emailWrapper
+ renderPasswordResetEmail passes brand to emailWrapper
+ renderSubscriptionConfirmEmail passes brand to emailWrapper
+ renderSubscriptionCanceledEmail passes brand to emailWrapper
+ renderTeamInvitationEmail passes brand to emailWrapper
+ renderKPIReportEmail passes brand to emailWrapper (already done via reports.ts)
+emailWrapper
+ emailWrapper still accepts brand parameter (no change needed — already works)
+ Header background uses brand.primaryColor
+ CTA button uses brand.primaryColor
+ Footer link uses brand.primaryColor
+ KPI value uses brand.primaryColor
+editor.tsx
+ Default color fallback reads from getBrandSettings() or prop, not hardcoded #3b6cff
+Build
+ npx tsc --noEmit passes with zero errors
+ No changes to exports beyond adding optional brand parameter to render functions
+ Existing getBrandSettings export from src/index.ts still works
